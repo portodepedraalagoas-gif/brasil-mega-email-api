@@ -1,22 +1,37 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const router = express.Router();
 
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.API_TOKEN) {
-  console.error('Missing required environment variables: EMAIL_USER, EMAIL_PASS, API_TOKEN');
+if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !process.env.API_TOKEN) {
+  console.error('Missing required environment variables: RESEND_API_KEY, EMAIL_FROM, API_TOKEN');
 }
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  // Nodemailer uses TLS with certificate validation by default.
-});
+// Railway Free/Hobby blocks outbound SMTP. Resend uses HTTPS (port 443).
+// Node.js >=18 supports fetch natively.
+async function sendViaResend(message) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err = new Error(`Resend HTTP ${response.status}: ${result.message || result.name || 'request failed'}`);
+      err.status = response.status;
+      throw err;
+    }
+    return result;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 const html = `<!doctype html>
 <html lang="pt-BR" dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -200,8 +215,8 @@ router.post('/sendEmail', verifyToken, async (req, res) => {
   const html_ = html.replace('&&@c0de@&&', escapeHtml(code));
 
   try {
-    await transporter.sendMail({
-      from: `Brasil Mega Lite <${process.env.EMAIL_USER}>`,
+    await sendViaResend({
+      from: process.env.EMAIL_FROM,
       to: email,
       subject: safeSubject,
       html: html_,

@@ -1,53 +1,33 @@
-# Brasil Mega Lite — Email API
+# Brasil Mega Lite — Email API (HTTPS/Resend)
 
-API Express para enviar o código de recuperação de conta por e-mail usando Gmail SMTP.
+Servidor Express em Node.js >=18 para envio de códigos de recuperação.
+Mantém a rota `POST /api/email/sendEmail` e o visual HTML original.
 
-## Deploy no Railway + GitHub
+## Configuração no Railway
 
-1. Envie esta pasta para um repositório GitHub. O arquivo `.env` real não deve ser enviado.
-2. No Railway, crie um projeto e faça o deploy a partir do repositório GitHub.
-3. Em **Variables** no Railway, configure:
-   - `EMAIL_USER`: endereço Gmail remetente.
-   - `EMAIL_PASS`: senha de app do Google (não é a senha normal da conta).
-   - `API_TOKEN`: token secreto longo e aleatório, igual ao configurado no sistema que chama esta API.
-4. O Railway executará `npm start`. A aplicação usa automaticamente `process.env.PORT`.
-5. Após o deploy, teste a URL pública na rota `/` — deve retornar `status: online`.
+Configure as variáveis em **Variables** (não envie arquivos `.env` ao GitHub):
 
-## Endpoint
+- `RESEND_API_KEY`: chave criada em https://resend.com/api-keys
+- `EMAIL_FROM`: `Brasil Mega Lite <onboarding@resend.dev>` para **teste somente**; use um endereço de **domínio verificado** para usuários reais.
+- `API_TOKEN`: token secreto usado pelos sistemas que chamam esta API.
 
-`POST /api/email/sendEmail`
+`EMAIL_USER` e `EMAIL_PASS` não são usados nesta versão. Remova-os do Railway quando confirmar que tudo funciona.
 
-Cabeçalho:
+**Limite de teste Resend:** usando `onboarding@resend.dev`, só envie para o e-mail de cadastro da conta Resend. Para enviar aos jogadores, adicione e verifique seu domínio em https://resend.com/domains e atualize `EMAIL_FROM`.
 
-`Authorization: Bearer SEU_API_TOKEN`
+## API
 
-Corpo JSON:
+- `GET /` retorna status de saúde.
+- `POST /api/email/sendEmail` requer `Authorization: Bearer <API_TOKEN>` e JSON:
 
 ```json
-{
-  "to": "jogador@email.com",
-  "subject": "Recuperação de conta — Brasil Mega Lite",
-  "text": "482915"
-}
+{"to":"seu-email@exemplo.com","subject":"Teste Brasil Mega Lite","text":"482915"}
 ```
 
-`text` é o código que será inserido no modelo HTML do e-mail. A API aceita códigos de 4 a 12 caracteres alfanuméricos ou hífen.
+O campo `text` é o **código** (4 a 12 caracteres alfanuméricos ou hífen), não uma mensagem livre. A API formata o HTML automaticamente e substitui o marcador de código no layout.
 
-## Importante: fluxo de recuperação
-
-Esta API apenas entrega o código por e-mail. O backend/bot/servidor do jogo deve:
-
-- gerar um código aleatório e associá-lo à conta solicitante;
-- armazenar o código com prazo de validade (por exemplo, 10 minutos), preferencialmente como hash;
-- limitar tentativas e pedidos de envio;
-- validar o código e invalidá-lo após o uso;
-- só então permitir a alteração segura da senha/credencial.
-
-Não confie no código enviado pelo cliente. A validação deve acontecer no backend que controla as contas.
+Em caso de falha, veja **Deploy Logs** no Railway. Eles exibem o status HTTP e a mensagem da Resend sem expor a chave.
 
 ## Segurança
 
-- Não faça commit do `.env`.
-- Use uma senha de app do Google com verificação em duas etapas ativada.
-- Mantenha `API_TOKEN` secreto e idêntico nos dois serviços.
-- Não exponha esta API diretamente ao navegador; chame-a do backend do servidor.
+Não publique senhas, chaves, `API_TOKEN` ou `.env`. Proteja o endpoint contra abuso com rate limiting e controle de tentativas antes de colocá-lo em produção. A Resend aceitar a mensagem não garante entrega na caixa de entrada.
