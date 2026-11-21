@@ -1,0 +1,22 @@
+{
+  "name": "api_email",
+  "version": "1.0.0",
+  "description": "API de envio de códigos de recuperação por e-mail do Brasil Mega Lite.",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "dev": "node --watch main.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "nodemailer": "^6.9.16"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
